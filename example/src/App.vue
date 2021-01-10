@@ -1,18 +1,16 @@
 <template>
-  <img alt="Vue logo" src="./assets/logo.png" />
-  <HelloWorld msg="Hello Vue 3 + Vite" />
-  <TestEditor />
+  <h1><img alt="Quill Logo" width="180" src="./assets/logo.svg" /></h1>
+  <Editor />
 </template>
 
 <script lang="ts">
 import { defineComponent } from 'vue'
-import HelloWorld from './components/HelloWorld.vue'
-import TestEditor from './components/TestEditor.vue'
+import Editor from './components/TestEditor.vue'
 
 export default defineComponent({
   name: 'App',
   components: {
-    HelloWorld, TestEditor
+    Editor
   }
 })
 </script>
@@ -22,8 +20,11 @@ export default defineComponent({
   font-family: Avenir, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  text-align: center;
   color: #2c3e50;
-  margin-top: 60px;
+  margin: 60px auto 0;
+  max-width: 960px;
+}
+h1 {
+  text-align: center;
 }
 </style>
