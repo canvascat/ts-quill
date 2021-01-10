@@ -1,5 +1,5 @@
-import extend from 'extend'
-import Emitter, { Events, Sources } from '../core/emitter'
+import { merge } from 'lodash'
+import { Events, Sources } from '../core/emitter'
 import BaseTheme, { BaseTooltip } from './base'
 import LinkBlot from '../formats/link'
 import { Range } from '../core/selection'
@@ -91,7 +91,8 @@ class SnowTheme extends BaseTheme {
     }
   }
 }
-SnowTheme.DEFAULTS = extend(true, {}, BaseTheme.DEFAULTS, {
+
+SnowTheme.DEFAULTS = merge({}, BaseTheme.DEFAULTS, {
   modules: {
     toolbar: {
       handlers: {

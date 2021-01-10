@@ -1,6 +1,4 @@
-import clone from 'clone'
-import equal from 'deep-equal'
-import extend from 'extend'
+import { cloneDeep, isEqual } from 'lodash'
 import Delta from 'quill-delta'
 import DeltaOp from 'quill-delta/lib/op'
 import { LeafBlot } from 'parchment'
@@ -38,10 +36,11 @@ export default class Editor {
           }
           this.scroll.insertAt(index, text)
           const [line, offset] = this.scroll.line(index)
-          let formats = extend({}, bubbleFormats(line))
+          let formats = Object.assign({}, bubbleFormats(line))
+          console.log(formats)
           if (line instanceof Block) {
             const [leaf] = line.descendant(LeafBlot, offset)
-            formats = extend(formats, bubbleFormats(leaf))
+            Object.assign(formats, bubbleFormats(leaf))
           }
           attributes = DeltaOp.attributes.diff(formats, attributes) || {}
         } else if (typeof op.insert === 'object') {
@@ -81,7 +80,7 @@ export default class Editor {
       })
     })
     this.scroll.optimize()
-    const delta = new Delta().retain(index).retain(length, clone(formats))
+    const delta = new Delta().retain(index).retain(length, cloneDeep(formats))
     return this.update(delta)
   }
 
@@ -89,7 +88,7 @@ export default class Editor {
     Object.keys(formats).forEach(format => {
       this.scroll.formatAt(index, length, format, formats[format])
     })
-    const delta = new Delta().retain(index).retain(length, clone(formats))
+    const delta = new Delta().retain(index).retain(length, cloneDeep(formats))
     return this.update(delta)
   }
 
@@ -129,7 +128,7 @@ export default class Editor {
       }
       return formats
     })
-    return extend.apply(extend, formatsArr)
+    return Object.assign({}, ...formatsArr)
   }
 
   getHTML(index, length) {
@@ -158,7 +157,7 @@ export default class Editor {
     Object.keys(formats).forEach(format => {
       this.scroll.formatAt(index, text.length, format, formats[format])
     })
-    return this.update(new Delta().retain(index).insert(text, clone(formats)))
+    return this.update(new Delta().retain(index).insert(text, cloneDeep(formats)))
   }
 
   isBlank() {
@@ -213,7 +212,7 @@ export default class Editor {
       this.delta = oldDelta.compose(change)
     } else {
       this.delta = this.getDelta()
-      if (!change || !equal(oldDelta.compose(change), this.delta)) {
+      if (!change || !isEqual(oldDelta.compose(change), this.delta)) {
         change = oldDelta.diff(this.delta, cursorIndex)
       }
     }

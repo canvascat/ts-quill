@@ -1,6 +1,6 @@
 import Delta from 'quill-delta'
 import * as Parchment from 'parchment'
-import extend from 'extend'
+import { merge } from 'lodash'
 import Editor from './editor'
 import Emitter, { Events, Sources } from './emitter'
 import Module from './module'
@@ -14,8 +14,6 @@ const debug = logger('quill')
 const QUILL_VERSION = process.env.QUILL_VERSION || 'dev'
 
 export const globalRegistry = new Parchment.Registry()
-
-Object.assign(window as any, { globalRegistry, instances })
 
 export default class Quill {
   static DEFAULTS = {
@@ -223,7 +221,7 @@ export default class Quill {
 
   formatLine(index, length, name, value, source) {
     let formats
-    // eslint-disable-next-line prefer-const
+      // eslint-disable-next-line prefer-const
     ;[index, length, formats, source] = overload(index, length, name, value, source)
     return modify.call(
       this,
@@ -238,7 +236,7 @@ export default class Quill {
 
   formatText(index, length, name, value, source) {
     let formats
-    // eslint-disable-next-line prefer-const
+      // eslint-disable-next-line prefer-const
     ;[index, length, formats, source] = overload(index, length, name, value, source)
     return modify.call(
       this,
@@ -341,7 +339,7 @@ export default class Quill {
 
   insertText(index, text, name, value, source) {
     let formats
-    // eslint-disable-next-line prefer-const
+      // eslint-disable-next-line prefer-const
     ;[index, , formats, source] = overload(index, 0, name, value, source)
     return modify.call(
       this,
@@ -447,8 +445,7 @@ export default class Quill {
 }
 
 export function expandConfig(container: QuillContainer, userConfig: QuillOptions): QuillOptions {
-  userConfig = extend(
-    true,
+  userConfig = merge(
     {
       container,
       modules: {
@@ -468,7 +465,7 @@ export function expandConfig(container: QuillContainer, userConfig: QuillOptions
       throw new Error(`Invalid theme ${userConfig.theme}. Did you register it?`)
     }
   }
-  const themeConfig = extend(true, {}, userConfig.theme.DEFAULTS)
+  const themeConfig = merge({}, userConfig.theme.DEFAULTS)
   ;[themeConfig, userConfig].forEach(config => {
     config.modules = config.modules || {}
     Object.keys(config.modules).forEach(module => {
@@ -497,7 +494,7 @@ export function expandConfig(container: QuillContainer, userConfig: QuillOptions
       container: userConfig.modules.toolbar
     }
   }
-  userConfig = extend(true, {}, Quill.DEFAULTS, { modules: moduleConfig }, themeConfig, userConfig)
+  userConfig = merge({}, Quill.DEFAULTS, { modules: moduleConfig }, themeConfig, userConfig)
   ;['bounds', 'container', 'scrollingContainer'].forEach(key => {
     if (typeof userConfig[key] === 'string') {
       userConfig[key] = document.querySelector(userConfig[key])

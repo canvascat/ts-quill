@@ -1,7 +1,6 @@
 import { ContainerBlot, LeafBlot, Scope } from 'parchment'
-import clone from 'clone'
-import equal from 'deep-equal'
-import Emitter, { Events, Sources } from './emitter'
+import { cloneDeep, isEqual } from 'lodash'
+import { Events, Sources } from './emitter'
 import logger from './logger'
 
 const debug = logger('quill:selection')
@@ -355,7 +354,7 @@ export default class Selection {
     if (this.lastRange != null) {
       this.savedRange = this.lastRange
     }
-    if (!equal(oldRange, this.lastRange)) {
+    if (!isEqual(oldRange, this.lastRange)) {
       if (
         !this.composing &&
         nativeRange != null &&
@@ -364,7 +363,7 @@ export default class Selection {
       ) {
         this.cursor.restore()
       }
-      const args = [Events.SELECTION_CHANGE, clone(this.lastRange), clone(oldRange), source]
+      const args = [Events.SELECTION_CHANGE, cloneDeep(this.lastRange), cloneDeep(oldRange), source]
       this.emitter.emit(Events.EDITOR_CHANGE, ...args)
       if (source !== Sources.SILENT) {
         this.emitter.emit(...args)

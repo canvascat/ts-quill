@@ -1,5 +1,5 @@
-import extend from 'extend'
-import Emitter, { Events, Sources } from '../core/emitter'
+import { merge } from 'lodash'
+import { Events, Sources } from '../core/emitter'
 import Theme from '../core/theme'
 import ColorPicker from '../ui/color-picker'
 import IconPicker from '../ui/icon-picker'
@@ -144,7 +144,7 @@ export default class BaseTheme extends Theme {
     this.quill.on(Events.EDITOR_CHANGE, update)
   }
 }
-BaseTheme.DEFAULTS = extend(true, {}, Theme.DEFAULTS, {
+BaseTheme.DEFAULTS = merge({}, Theme.DEFAULTS, {
   modules: {
     toolbar: {
       handlers: {

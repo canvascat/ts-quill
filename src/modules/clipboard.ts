@@ -1,4 +1,3 @@
-import extend from 'extend'
 import Delta from 'quill-delta'
 import { Attributor, ClassAttributor, EmbedBlot, Scope, StyleAttributor } from 'parchment'
 import logger from '../core/logger'
@@ -194,7 +193,7 @@ function applyFormat(delta, format, value) {
     if (op.attributes && op.attributes[format]) {
       return newDelta.push(op)
     }
-    return newDelta.insert(op.insert, extend({}, { [format]: value }, op.attributes))
+    return newDelta.insert(op.insert, Object.assign({}, { [format]: value }, op.attributes))
   }, new Delta())
 }
 

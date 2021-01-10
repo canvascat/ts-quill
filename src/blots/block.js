@@ -1,4 +1,3 @@
-import extend from 'extend';
 import Delta from 'quill-delta';
 import {
   AttributorStore,
@@ -136,7 +135,7 @@ class BlockEmbed extends EmbedBlot {
   delta() {
     return new Delta().insert(
       this.value(),
-      extend(this.formats(), this.attributes.values()),
+      Object.assign(this.formats(), this.attributes.values()),
     );
   }
 
@@ -179,7 +178,7 @@ function blockDelta(blot) {
 function bubbleFormats(blot, formats = {}) {
   if (blot == null) return formats;
   if (typeof blot.formats === 'function') {
-    formats = extend(formats, blot.formats());
+    Object.assign(formats, blot.formats());
   }
   if (
     blot.parent == null ||

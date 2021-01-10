@@ -1,4 +1,4 @@
-import { Scope, ScrollBlot, ContainerBlot } from 'parchment'
+import { Scope, ScrollBlot, ContainerBlot, Registry } from 'parchment'
 import { Events, Sources } from '../core/emitter'
 import Block, { BlockEmbed } from './block'
 import Break from './break'
@@ -15,7 +15,9 @@ export default class Scroll extends ScrollBlot {
   static defaultChild = Block
   static allowedChildren = [Block, BlockEmbed, Container]
 
-  constructor(registry, domNode, { emitter }) {
+  batch = false
+
+  constructor(registry: Registry, domNode: HTMLDivElement, { emitter }) {
     super(registry, domNode)
     this.emitter = emitter
     // Some reason fixes composition issues with character languages in Windows/Chrome, Safari
@@ -41,7 +43,7 @@ export default class Scroll extends ScrollBlot {
     this.emitter.emit(Events.SCROLL_BLOT_UNMOUNT, blot)
   }
 
-  deleteAt(index, length) {
+  deleteAt(index: number, length: number) {
     const [first, offset] = this.line(index)
     const [last] = this.line(index + length)
     super.deleteAt(index, length)
@@ -100,7 +102,7 @@ export default class Scroll extends ScrollBlot {
     return this.path(index).pop() || [null, -1]
   }
 
-  line(index) {
+  line(index: number) {
     if (index === this.length()) {
       return this.line(index - 1)
     }
@@ -132,7 +134,7 @@ export default class Scroll extends ScrollBlot {
     }
   }
 
-  path(index) {
+  path(index: number) {
     return super.path(index).slice(1) // Exclude self
   }
 

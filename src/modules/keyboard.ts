@@ -1,6 +1,4 @@
-import clone from 'clone'
-import equal from 'deep-equal'
-import extend from 'extend'
+import { cloneDeep, isEqual } from 'lodash'
 import Delta from 'quill-delta'
 import DeltaOp from 'quill-delta/lib/op'
 import { EmbedBlot, Scope, TextBlot } from 'parchment'
@@ -72,7 +70,7 @@ export default class Keyboard extends Module {
     }
     const keys = Array.isArray(binding.key) ? binding.key : [binding.key]
     keys.forEach(key => {
-      const singleBinding = extend({}, binding, { key }, context, handler)
+      const singleBinding = Object.assign({}, binding, { key }, context, handler)
       this.bindings[singleBinding.key] = this.bindings[singleBinding.key] || []
       this.bindings[singleBinding.key].push(singleBinding)
     })
@@ -126,7 +124,7 @@ export default class Keyboard extends Module {
             !Object.keys(binding.format).every(name => {
               if (binding.format[name] === true) return curContext.format[name] != null
               if (binding.format[name] === false) return curContext.format[name] == null
-              return equal(binding.format[name], curContext.format[name])
+              return isEqual(binding.format[name], curContext.format[name])
             })
           ) {
             return false
@@ -243,7 +241,7 @@ Keyboard.DEFAULTS = {
       format: { list: 'checked' },
       handler(range) {
         const [line, offset] = this.quill.getLine(range.index)
-        const formats = extend({}, line.formats(), { list: 'checked' })
+        const formats = Object.assign({}, line.formats(), { list: 'checked' })
         const delta = new Delta()
           .retain(range.index)
           .insert('\n', formats)
@@ -599,7 +597,7 @@ export function normalize(binding) {
   if (typeof binding === 'string' || typeof binding === 'number') {
     binding = { key: binding }
   } else if (typeof binding === 'object') {
-    binding = clone(binding, false)
+    binding = cloneDeep(binding)
   } else {
     return null
   }

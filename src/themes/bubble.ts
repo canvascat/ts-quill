@@ -1,5 +1,5 @@
-import extend from 'extend'
-import Emitter, { Events, Sources } from '../core/emitter'
+import { merge } from 'lodash'
+import { Events, Sources } from '../core/emitter'
 import BaseTheme, { BaseTooltip } from './base'
 import { Range } from '../core/selection'
 import icons from '../ui/icons'
@@ -91,7 +91,7 @@ export default class BubbleTheme extends BaseTheme {
     this.buildPickers(toolbar.container.querySelectorAll('select'), icons)
   }
 }
-BubbleTheme.DEFAULTS = extend(true, {}, BaseTheme.DEFAULTS, {
+BubbleTheme.DEFAULTS = merge({}, BaseTheme.DEFAULTS, {
   modules: {
     toolbar: {
       handlers: {
