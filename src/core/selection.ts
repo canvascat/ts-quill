@@ -376,12 +376,6 @@ export default class Selection {
   }
 }
 
-function contains(parent, descendant) {
-  try {
-    // Firefox inserts inaccessible nodes around video elements
-    descendant.parentNode // eslint-disable-line no-unused-expressions
-  } catch (e) {
-    return false
-  }
-  return parent.contains(descendant)
+function contains(parent: Node, descendant: Node | null) {
+  return descendant?.parentNode ? parent.contains(descendant) : false
 }

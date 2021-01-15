@@ -8,10 +8,11 @@ import Selection, { Range } from './selection'
 import instances from './instances'
 import logger, { Levels } from './logger'
 import Theme from './theme'
-import { QuillOptionsStatic } from '../types'
+import { QuillOptions, QuillOptionsStatic } from '../types'
+import { RangeStatic } from 'quill'
 
 const debug = logger('quill')
-const QUILL_VERSION = process.env.QUILL_VERSION || 'dev'
+const QUILL_VERSION = (globalThis as any).QUILL_VERSION || 'dev'
 
 Object.assign(window as any, { instances })
 
@@ -37,14 +38,12 @@ export default class Quill {
     'core/theme': Theme
   }
 
-  static debug(limit: Levels | true) {
-    if (limit === true) {
-      limit = 'log'
-    }
-    console.log('----', limit)
+  static debug(limit?: Levels | boolean) {
+    if (!limit) return
+    if (limit === true) limit = 'log'
     logger.level(limit)
   }
-  static find(node) {
+  static find(node: HTMLDivElement) {
     return instances.get(node) || globalRegistry.find(node)
   }
   static import(name: string) {
@@ -55,12 +54,14 @@ export default class Quill {
   }
 
   // TODO
-  static use(plugin, overwrite = false) {
-    const name = plugin.attrName ?? plugin.blotName ?? plugin.pluginName
-    this.register(`formats/${name}`, plugin, overwrite)
-  }
+  // static use(plugin, overwrite = false) {
+  //   const name = plugin.attrName ?? plugin.blotName ?? plugin.pluginName
+  //   this.register(`formats/${name}`, plugin, overwrite)
+  // }
 
-  static register(path, target, overwrite = false) {
+  static register(path: string, def: any, suppressWarning?: boolean): void
+  static register(defs: StringMap, suppressWarning?: boolean): void
+  static register(path: string | StringMap, target?: any, overwrite?: boolean) {
     if (typeof path !== 'string') {
       const name = path.attrName || path.blotName
       if (typeof name === 'string') {
@@ -94,24 +95,23 @@ export default class Quill {
   root: HTMLDivElement
   scrollingContainer
   emitter = new Emitter()
-  scroll: Blot
+  scroll
   editor
-  // selection: Selection
+  selection
   theme
-  keyboard: KeyboardStatic
-  clipboard: ClipboardStatic
+  keyboard
+  clipboard
   history
   uploader
 
-  constructor(container: string | Element, options: QuillOptionsStatic = {}) {
+  constructor(container: string | Element, options: QuillOptions = {}) {
     this.options = expandConfig(container, options)
-    this.container = this.options.container as HTMLDivElement
+    this.container = this.options.container
     if (!this.container) {
-      return debug.error('Invalid Quill container', container)
+      debug.error('Invalid Quill container', container)
+      throw new Error('Invalid Quill container')
     }
-    if (this.options.debug) {
-      Quill.debug(this.options.debug)
-    }
+    Quill.debug(this.options.debug)
     const html = this.container.innerHTML.trim()
     this.container.classList.add('ql-container')
     this.container.innerHTML = ''
@@ -121,21 +121,24 @@ export default class Quill {
       e.preventDefault()
     })
     this.root.classList.add('ql-blank')
-    this.root.setAttribute('data-gramm', false)
+    this.root.setAttribute('data-gramm', 'false')
     this.scrollingContainer = this.options.scrollingContainer || this.root
     // this.emitter = new Emitter();
     const ScrollBlot = this.options.registry.query(Parchment.ScrollBlot.blotName)
     this.scroll = new ScrollBlot(this.options.registry, this.root, {
       emitter: this.emitter
     })
+
     this.editor = new Editor(this.scroll)
     this.selection = new Selection(this.scroll, this.emitter)
+    // 注册主题
     this.theme = new this.options.theme(this, this.options) // eslint-disable-line new-cap
     this.keyboard = this.theme.addModule('keyboard')
     this.clipboard = this.theme.addModule('clipboard')
     this.history = this.theme.addModule('history')
     this.uploader = this.theme.addModule('uploader')
     this.theme.init()
+    // 事件监听
     this.emitter.on(Events.EDITOR_CHANGE, type => {
       if (type === Events.TEXT_CHANGE) {
         this.root.classList.toggle('ql-blank', this.editor.isBlank())
@@ -144,7 +147,7 @@ export default class Quill {
     this.emitter.on(Events.SCROLL_UPDATE, (source, mutations) => {
       const range = this.selection.lastRange
       const index = range && range.length === 0 ? range.index : undefined
-      modify.call(this, () => this.editor.update(null, mutations, index), source)
+      this.modify(() => this.editor.update(null, mutations, index), source)
     })
     const contents = this.clipboard.convert({
       html: `${html}<p><br></p>`,
@@ -160,7 +163,7 @@ export default class Quill {
     }
   }
 
-  addContainer(container: string | Element, refNode = null) {
+  private addContainer(container: string | HTMLDivElement, refNode = null) {
     if (typeof container === 'string') {
       const className = container
       container = document.createElement('div')
@@ -174,17 +177,10 @@ export default class Quill {
     this.selection.setRange(null)
   }
 
-  deleteText(index, length, source) {
+  /** 从编辑器删除文本，返回一个改变的Delta对象 */
+  deleteText(index: number, length: number, source?: Sources): Delta {
     ;[index, length, , source] = overload(index, length, source)
-    return modify.call(
-      this,
-      () => {
-        return this.editor.deleteText(index, length)
-      },
-      source,
-      index,
-      -1 * length
-    )
+    return this.modify(() => this.editor.deleteText(index, length), source, index, -1 * length)
   }
 
   disable() {
@@ -202,65 +198,64 @@ export default class Quill {
     this.scrollingContainer.scrollTop = scrollTop
     this.scrollIntoView()
   }
-
-  format(name, value, source = Sources.API) {
-    return modify.call(
-      this,
-      () => {
-        const range = this.getSelection(true)
-        let change = new Delta()
-        if (range == null) {
-          return change
-        } else if (this.scroll.query(name, Parchment.Scope.BLOCK)) {
-          change = this.editor.formatLine(range.index, range.length, {
-            [name]: value
-          })
-        } else if (range.length === 0) {
-          this.selection.format(name, value)
-          return change
-        } else {
-          change = this.editor.formatText(range.index, range.length, {
-            [name]: value
-          })
-        }
-        this.setSelection(range, Sources.SILENT)
+  format(name: string, value: any, source?: Sources): Delta {
+    return this.modify(() => {
+      const range = this.getSelection(true)
+      let change = new Delta()
+      if (range == null) {
         return change
-      },
-      source
-    )
+      } else if (this.scroll.query(name, Parchment.Scope.BLOCK)) {
+        change = this.editor.formatLine(range.index, range.length, {
+          [name]: value
+        })
+      } else if (range.length === 0) {
+        this.selection.format(name, value)
+        return change
+      } else {
+        change = this.editor.formatText(range.index, range.length, {
+          [name]: value
+        })
+      }
+      this.setSelection(range, Sources.SILENT)
+      return change
+    }, source)
   }
 
-  formatLine(index, length, name, value, source) {
+  formatLine(index: number, length: number, source?: Sources): Delta
+  formatLine(index: number, length: number, format: string, value: any, source?: Sources): Delta
+  formatLine(index: number, length: number, formats: StringMap, source?: Sources): Delta
+  formatLine(
+    index: number,
+    length: number,
+    name?: string | StringMap | Sources,
+    value?: any,
+    source?: Sources
+  ): Delta {
     let formats
       // eslint-disable-next-line prefer-const
     ;[index, length, formats, source] = overload(index, length, name, value, source)
-    return modify.call(
-      this,
-      () => {
-        return this.editor.formatLine(index, length, formats)
-      },
-      source,
-      index,
-      0
-    )
+    return this.modify(() => this.editor.formatLine(index, length, formats), source, index, 0)
   }
 
-  formatText(index, length, name, value, source) {
+  formatText(index: number, length: number, source?: Sources): Delta
+  formatText(index: number, length: number, format: string, value: any, source?: Sources): Delta
+  formatText(index: number, length: number, formats: StringMap, source?: Sources): Delta
+  formatText(range: RangeStatic, format: string, value: any, source?: Sources): Delta
+  formatText(range: RangeStatic, formats: StringMap, source?: Sources): Delta
+  formatText(
+    index: number | RangeStatic,
+    length: number | string | StringMap,
+    name?: any,
+    value?: any,
+    source?: Sources
+  ) {
     let formats
       // eslint-disable-next-line prefer-const
     ;[index, length, formats, source] = overload(index, length, name, value, source)
-    return modify.call(
-      this,
-      () => {
-        return this.editor.formatText(index, length, formats)
-      },
-      source,
-      index,
-      0
-    )
+    return this.modify(() => this.editor.formatText(index, length, formats), source, index, 0)
   }
 
-  getBounds(index, length = 0) {
+  getBounds(index: number, length = 0): BoundsStatic {
     let bounds
     if (typeof index === 'number') {
       bounds = this.selection.getBounds(index, length)
@@ -290,11 +285,11 @@ export default class Quill {
     return this.editor.getFormat(index.index, index.length)
   }
 
-  getIndex(blot) {
+  getIndex(blot: any) {
     return blot.offset(this.scroll)
   }
 
-  getLength() {
+  getLength(): number {
     return this.scroll.length()
   }
 
@@ -313,7 +308,7 @@ export default class Quill {
     return this.scroll.lines(index, length)
   }
 
-  getModule(name) {
+  getModule(name: string) {
     return this.theme.modules[name]
   }
 
@@ -337,26 +332,25 @@ export default class Quill {
     return this.selection.hasFocus()
   }
 
-  insertEmbed(index: number, embed, value, source = Sources.API) {
-    return modify.call(
-      this,
-      () => {
-        return this.editor.insertEmbed(index, embed, value)
-      },
-      source,
-      index
-    )
+  insertEmbed(index: number, embed: string, value: any, source?: Sources) {
+    return this.modify(() => this.editor.insertEmbed(index, embed, value), source, index)
   }
 
-  insertText(index: number, text: string, name, value, source) {
+  insertText(index: number, text: string, source?: Sources): Delta
+  insertText(index: number, text: string, format: string, value: any, source?: Sources): Delta
+  insertText(index: number, text: string, formats: StringMap, source?: Sources): Delta
+  public insertText(
+    index: number,
+    text: string,
+    name?: Sources | string | StringMap,
+    value?: any,
+    source?: Sources
+  ) {
     let formats
       // eslint-disable-next-line prefer-const
     ;[index, , formats, source] = overload(index, 0, name, value, source)
-    return modify.call(
-      this,
-      () => {
-        return this.editor.insertText(index, text, formats)
-      },
+    return this.modify(
+      () => this.editor.insertText(index, text, formats),
       source,
       index,
       text.length
@@ -379,46 +373,35 @@ export default class Quill {
     return this.emitter.once(...args)
   }
 
-  removeFormat(index, length, source) {
+  removeFormat(index: number, length: number, source?: Sources) {
     ;[index, length, , source] = overload(index, length, source)
-    return modify.call(
-      this,
-      () => {
-        return this.editor.removeFormat(index, length)
-      },
-      source,
-      index
-    )
+    return this.modify(() => this.editor.removeFormat(index, length), source, index)
   }
 
   scrollIntoView() {
     this.selection.scrollIntoView(this.scrollingContainer)
   }
 
-  setContents(delta, source = Sources.API) {
-    return modify.call(
-      this,
-      () => {
-        delta = new Delta(delta)
-        const length = this.getLength()
-        const deleted = this.editor.deleteText(0, length)
-        const applied = this.editor.applyDelta(delta)
-        const lastOp = applied.ops[applied.ops.length - 1]
-        if (
-          lastOp != null &&
-          typeof lastOp.insert === 'string' &&
-          lastOp.insert[lastOp.insert.length - 1] === '\n'
-        ) {
-          this.editor.deleteText(this.getLength() - 1, 1)
-          applied.delete(1)
-        }
-        return deleted.compose(applied)
-      },
-      source
-    )
+  setContents(delta: Delta, source?: Sources) {
+    return this.modify(() => {
+      delta = new Delta(delta)
+      const length = this.getLength()
+      const deleted = this.editor.deleteText(0, length)
+      const applied = this.editor.applyDelta(delta)
+      const lastOp = applied.ops[applied.ops.length - 1]
+      if (
+        lastOp != null &&
+        typeof lastOp.insert === 'string' &&
+        lastOp.insert[lastOp.insert.length - 1] === '\n'
+      ) {
+        this.editor.deleteText(this.getLength() - 1, 1)
+        applied.delete(1)
+      }
+      return deleted.compose(applied)
+    }, source)
   }
 
-  setSelection(index, length, source) {
+  setSelection(index: number, length: number, source?: Sources) {
     if (index == null) {
       this.selection.setRange(null, length || Sources.API)
     } else {
@@ -430,32 +413,57 @@ export default class Quill {
     }
   }
 
-  setText(text: string, source = Sources.API) {
+  setText(text: string, source?: Sources) {
     const delta = new Delta().insert(text)
     return this.setContents(delta, source)
   }
 
-  update(source = Sources.USER) {
+  update(source?: Sources) {
     const change = this.scroll.update(source) // Will update selection before selection.update() does if text changes
     this.selection.update(source)
     // TODO this is usually undefined
     return change
   }
 
-  updateContents(delta, source = Sources.API) {
-    return modify.call(
-      this,
-      () => {
-        delta = new Delta(delta)
-        return this.editor.applyDelta(delta, source)
-      },
-      source,
-      true
-    )
+  updateContents(delta: Delta, source?: Sources) {
+    return this.modify(() => this.editor.applyDelta(new Delta(delta), source), source, true)
+  }
+
+  // Handle selection preservation and TEXT_CHANGE emission
+  // common to modification APIs
+  private modify(modifier: Function, source, index: any = null, shift: any = null) {
+    if (!this.isEnabled() && source === Sources.USER) {
+      return new Delta()
+    }
+    let range = index == null ? null : this.getSelection()
+    const oldDelta = this.editor.delta
+    const change = modifier()
+    if (range != null) {
+      if (index === true) {
+        index = range.index // eslint-disable-line prefer-destructuring
+      }
+      if (shift == null) {
+        range = shiftRange(range, change, source)
+      } else if (shift !== 0) {
+        range = shiftRange(range, index, shift, source)
+      }
+      this.setSelection(range, Sources.SILENT)
+    }
+    if (change.length() > 0) {
+      const args = [Events.TEXT_CHANGE, change, oldDelta, source]
+      this.emitter.emit(Events.EDITOR_CHANGE, ...args)
+      if (source !== Sources.SILENT) {
+        this.emitter.emit(...args)
+      }
+    }
+    return change
   }
 }
 
-export function expandConfig(container: string | Element, userConfig: QuillOptionsStatic) {
+export function expandConfig(
+  container: string | Element,
+  userConfig: QuillOptions
+): QuillOptionsStatic {
   userConfig = merge(
     {
       container,
@@ -520,36 +528,8 @@ export function expandConfig(container: string | Element, userConfig: QuillOptio
   return userConfig
 }
 
-// Handle selection preservation and TEXT_CHANGE emission
-// common to modification APIs
-function modify(modifier, source, index: any = null, shift: any = null) {
-  if (!this.isEnabled() && source === Sources.USER) {
-    return new Delta()
-  }
-  let range = index == null ? null : this.getSelection()
-  const oldDelta = this.editor.delta
-  const change = modifier()
-  if (range != null) {
-    if (index === true) {
-      index = range.index // eslint-disable-line prefer-destructuring
-    }
-    if (shift == null) {
-      range = shiftRange(range, change, source)
-    } else if (shift !== 0) {
-      range = shiftRange(range, index, shift, source)
-    }
-    this.setSelection(range, Sources.SILENT)
-  }
-  if (change.length() > 0) {
-    const args = [Events.TEXT_CHANGE, change, oldDelta, source]
-    this.emitter.emit(Events.EDITOR_CHANGE, ...args)
-    if (source !== Sources.SILENT) {
-      this.emitter.emit(...args)
-    }
-  }
-  return change
-}
-
+// (index, length, source)
+// (index, length, name, value, source)
 export function overload(index, length, name, value, source) {
   let formats = {}
   if (typeof index.index === 'number' && typeof index.length === 'number') {
@@ -558,12 +538,9 @@ export function overload(index, length, name, value, source) {
       source = value
       value = name
       name = length
-      length = index.length // eslint-disable-line prefer-destructuring
-      index = index.index // eslint-disable-line prefer-destructuring
-    } else {
-      length = index.length // eslint-disable-line prefer-destructuring
-      index = index.index // eslint-disable-line prefer-destructuring
     }
+    length = index.length // eslint-disable-line prefer-destructuring
+    index = index.index // eslint-disable-line prefer-destructuring
   } else if (typeof length !== 'number') {
     source = value
     value = name
@@ -586,7 +563,14 @@ export function overload(index, length, name, value, source) {
   return [index, length, formats, source]
 }
 
-function shiftRange(range, index, length, source) {
+function shiftRange(range: RangeStatic, index: number, shift: number, source?: Sources): Range
+function shiftRange(range: RangeStatic, change: Delta, source?: Sources): Range
+function shiftRange(
+  range: RangeStatic,
+  index: number | Delta,
+  length?: number | Sources,
+  source?: Sources
+) {
   if (range == null) return null
   let start
   let end
@@ -594,13 +578,10 @@ function shiftRange(range, index, length, source) {
     ;[start, end] = [range.index, range.index + range.length].map(pos =>
       index.transformPosition(pos, source !== Sources.USER)
     )
-  } else {
+  } else if (typeof index === 'number') {
     ;[start, end] = [range.index, range.index + range.length].map(pos => {
       if (pos < index || (pos === index && source === Sources.USER)) return pos
-      if (length >= 0) {
-        return pos + length
-      }
-      return Math.max(index, pos + length)
+      return length >= 0 ? pos + length : Math.max(index, pos + length)
     })
   }
   return new Range(start, end - start)

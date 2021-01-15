@@ -14,24 +14,21 @@ import History from './modules/history'
 import Keyboard from './modules/keyboard'
 import Uploader from './modules/uploader'
 
-Quill.register(
-  {
-    'blots/block': Block,
-    'blots/block/embed': BlockEmbed,
-    'blots/break': Break,
-    'blots/container': Container,
-    'blots/cursor': Cursor,
-    'blots/embed': Embed,
-    'blots/inline': Inline,
-    'blots/scroll': Scroll,
-    'blots/text': TextBlot,
+Quill.register({
+  'blots/block': Block,
+  'blots/block/embed': BlockEmbed,
+  'blots/break': Break,
+  'blots/container': Container,
+  'blots/cursor': Cursor,
+  'blots/embed': Embed,
+  'blots/inline': Inline,
+  'blots/scroll': Scroll,
+  'blots/text': TextBlot,
 
-    'modules/clipboard': Clipboard,
-    'modules/history': History,
-    'modules/keyboard': Keyboard,
-    'modules/uploader': Uploader
-  },
-  true
-)
+  'modules/clipboard': Clipboard,
+  'modules/history': History,
+  'modules/keyboard': Keyboard,
+  'modules/uploader': Uploader
+})
 
 export default Quill
