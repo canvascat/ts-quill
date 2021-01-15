@@ -33,9 +33,8 @@ export default defineComponent({
 
   setup: () => {
     const count = ref(0)
-    const editor = ref(null)
+    const editor = ref(null as Nullable<HTMLDivElement>)
     onMounted(() => {
-      console.log(editor.value);
       (window as any).Quill = Quill;
       (window as any).editor = new Quill(editor.value, {
         modules: { toolbar },

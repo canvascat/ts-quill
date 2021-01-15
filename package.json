@@ -34,7 +34,8 @@
     "semantic-release-prepare": "ts-node tools/semantic-release-prepare",
     "precommit": "lint-staged",
     "travis-deploy-once": "travis-deploy-once",
-    "build:example": "vuedx-typecheck . && vite build"
+    "build:example": "vuedx-typecheck . && vite build",
+    "build:example1": "vite build"
   },
   "lint-staged": {
     "{src,test}/**/*.ts": [
@@ -85,15 +86,16 @@
   },
   "dependencies": {
     "eventemitter3": "^3.1.0",
+    "fast-diff": "^1.2.0",
     "lodash": "^4.17.20",
-    "parchment": "2.0.0-dev.0",
-    "quill-delta": "^3.6.2"
+    "parchment": "2.0.0-dev.0"
   },
   "devDependencies": {
     "@commitlint/cli": "^7.1.2",
     "@commitlint/config-conventional": "^7.1.2",
     "@types/jest": "^23.3.2",
-    "@types/node": "^10.11.0",
+    "@types/node": "^14.14.21",
+    "@types/quill": "^2.0.4",
     "@vitejs/plugin-vue": "^1.0.4",
     "@vue/compiler-sfc": "^3.0.5",
     "@vuedx/typecheck": "^0.4.1",
