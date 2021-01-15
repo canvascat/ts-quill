@@ -1,4 +1,4 @@
-import Delta from 'quill-delta'
+import Delta from '../delta'
 import { Attributor, ClassAttributor, EmbedBlot, Scope, StyleAttributor } from 'parchment'
 import logger from '../core/logger'
 import Module from '../core/module'
@@ -49,6 +49,8 @@ const STYLE_ATTRIBUTORS = [
 }, {})
 
 export default class Clipboard extends Module {
+  static pluginName = 'modules/clipboard'
+
   static DEFAULTS = {
     matchers: []
   }

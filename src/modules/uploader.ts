@@ -1,8 +1,10 @@
-import Delta from 'quill-delta'
-import Emitter, { Sources } from '../core/emitter'
+import Delta from '../delta'
+import { Sources } from '../core/emitter'
 import Module from '../core/module'
 
 export default class Uploader extends Module {
+  static pluginName = 'modules/uploader'
+
   constructor(quill, options) {
     super(quill, options)
     quill.root.addEventListener('drop', e => {

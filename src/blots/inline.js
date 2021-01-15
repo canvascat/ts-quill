@@ -2,7 +2,22 @@ import { EmbedBlot, InlineBlot, Scope } from 'parchment';
 import Break from './break';
 import Text from './text';
 
-class Inline extends InlineBlot {
+export default class Inline extends InlineBlot {
+  static pluginName = 'blots/inline';
+  static allowedChildren = [Inline, Break, EmbedBlot, Text];
+  // Lower index means deeper in the DOM tree, since not found (-1) is for embeds
+  static order = [
+    'cursor',
+    'inline', // Must be lower
+    'underline',
+    'strike',
+    'italic',
+    'bold',
+    'script',
+    'link',
+    'code', // Must be higher
+  ];
+
   static compare(self, other) {
     const selfIndex = Inline.order.indexOf(self);
     const otherIndex = Inline.order.indexOf(other);
@@ -42,18 +57,3 @@ class Inline extends InlineBlot {
     }
   }
 }
-Inline.allowedChildren = [Inline, Break, EmbedBlot, Text];
-// Lower index means deeper in the DOM tree, since not found (-1) is for embeds
-Inline.order = [
-  'cursor',
-  'inline', // Must be lower
-  'underline',
-  'strike',
-  'italic',
-  'bold',
-  'script',
-  'link',
-  'code', // Must be higher
-];
-
-export default Inline;

@@ -1,4 +1,4 @@
-import Delta from 'quill-delta'
+import Delta from '../delta'
 import * as Parchment from 'parchment'
 import { merge } from 'lodash'
 import Editor from './editor'
@@ -8,10 +8,12 @@ import Selection, { Range } from './selection'
 import instances from './instances'
 import logger, { Levels } from './logger'
 import Theme from './theme'
-import { QuillContainer, QuillOptions } from '../types'
+import { QuillOptionsStatic } from '../types'
 
 const debug = logger('quill')
 const QUILL_VERSION = process.env.QUILL_VERSION || 'dev'
+
+Object.assign(window as any, { instances })
 
 export const globalRegistry = new Parchment.Registry()
 
@@ -39,6 +41,7 @@ export default class Quill {
     if (limit === true) {
       limit = 'log'
     }
+    console.log('----', limit)
     logger.level(limit)
   }
   static find(node) {
@@ -50,6 +53,13 @@ export default class Quill {
     }
     return this.imports[name]
   }
+
+  // TODO
+  static use(plugin, overwrite = false) {
+    const name = plugin.attrName ?? plugin.blotName ?? plugin.pluginName
+    this.register(`formats/${name}`, plugin, overwrite)
+  }
+
   static register(path, target, overwrite = false) {
     if (typeof path !== 'string') {
       const name = path.attrName || path.blotName
@@ -57,6 +67,7 @@ export default class Quill {
         // register(Blot | Attributor, overwrite)
         this.register(`formats/${name}`, path, target)
       } else {
+        // { path: target }
         Object.keys(path).forEach(key => {
           this.register(key, path[key], target)
         })
@@ -79,22 +90,22 @@ export default class Quill {
   }
 
   options
-  container: QuillContainer
-  root
+  container
+  root: HTMLDivElement
   scrollingContainer
   emitter = new Emitter()
-  scroll
+  scroll: Blot
   editor
   // selection: Selection
   theme
-  keyboard
-  clipboard
+  keyboard: KeyboardStatic
+  clipboard: ClipboardStatic
   history
   uploader
 
-  constructor(container: QuillContainer, options: QuillOptions = {}) {
+  constructor(container: string | Element, options: QuillOptionsStatic = {}) {
     this.options = expandConfig(container, options)
-    this.container = this.options.container
+    this.container = this.options.container as HTMLDivElement
     if (!this.container) {
       return debug.error('Invalid Quill container', container)
     }
@@ -149,7 +160,7 @@ export default class Quill {
     }
   }
 
-  addContainer(container, refNode = null) {
+  addContainer(container: string | Element, refNode = null) {
     if (typeof container === 'string') {
       const className = container
       container = document.createElement('div')
@@ -287,11 +298,11 @@ export default class Quill {
     return this.scroll.length()
   }
 
-  getLeaf(index) {
+  getLeaf(index: number) {
     return this.scroll.leaf(index)
   }
 
-  getLine(index) {
+  getLine(index: number) {
     return this.scroll.line(index)
   }
 
@@ -326,7 +337,7 @@ export default class Quill {
     return this.selection.hasFocus()
   }
 
-  insertEmbed(index, embed, value, source = Sources.API) {
+  insertEmbed(index: number, embed, value, source = Sources.API) {
     return modify.call(
       this,
       () => {
@@ -337,7 +348,7 @@ export default class Quill {
     )
   }
 
-  insertText(index, text, name, value, source) {
+  insertText(index: number, text: string, name, value, source) {
     let formats
       // eslint-disable-next-line prefer-const
     ;[index, , formats, source] = overload(index, 0, name, value, source)
@@ -444,7 +455,7 @@ export default class Quill {
   }
 }
 
-export function expandConfig(container: QuillContainer, userConfig: QuillOptions): QuillOptions {
+export function expandConfig(container: string | Element, userConfig: QuillOptionsStatic) {
   userConfig = merge(
     {
       container,
@@ -511,7 +522,7 @@ export function expandConfig(container: QuillContainer, userConfig: QuillOptions
 
 // Handle selection preservation and TEXT_CHANGE emission
 // common to modification APIs
-function modify(modifier, source, index, shift) {
+function modify(modifier, source, index: any = null, shift: any = null) {
   if (!this.isEnabled() && source === Sources.USER) {
     return new Delta()
   }

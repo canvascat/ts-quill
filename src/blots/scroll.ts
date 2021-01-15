@@ -9,6 +9,7 @@ function isLine(blot: any): boolean {
 }
 
 export default class Scroll extends ScrollBlot {
+  static pluginName = 'blots/scroll'
   static blotName = 'scroll'
   static className = 'ql-editor'
   static tagName = 'DIV'

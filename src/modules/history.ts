@@ -4,6 +4,8 @@ import Module from '../core/module'
 import { Events, Sources } from '../core/emitter'
 
 export default class History extends Module {
+  static pluginName = 'modules/history'
+
   static DEFAULTS = {
     delay: 1000,
     maxStack: 100,

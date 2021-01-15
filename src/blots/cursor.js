@@ -1,7 +1,13 @@
 import { EmbedBlot, Scope } from 'parchment';
 import TextBlot from './text';
 
-class Cursor extends EmbedBlot {
+export default class Cursor extends EmbedBlot {
+  static pluginName = 'blots/cursor';
+  static blotName = 'cursor';
+  static className = 'ql-cursor';
+  static tagName = 'span';
+  static CONTENTS = '\uFEFF'; // Zero width no break space
+
   static value() {
     return undefined;
   }
@@ -128,9 +134,3 @@ class Cursor extends EmbedBlot {
     return '';
   }
 }
-Cursor.blotName = 'cursor';
-Cursor.className = 'ql-cursor';
-Cursor.tagName = 'span';
-Cursor.CONTENTS = '\uFEFF'; // Zero width no break space
-
-export default Cursor;

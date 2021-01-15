@@ -1,6 +1,10 @@
 import { EmbedBlot } from 'parchment';
 
-class Break extends EmbedBlot {
+export default class Break extends EmbedBlot {
+  static pluginName = 'blots/break';
+  static blotName = 'break';
+  static tagName = 'BR';
+
   static value() {
     return undefined;
   }
@@ -19,7 +23,3 @@ class Break extends EmbedBlot {
     return '';
   }
 }
-Break.blotName = 'break';
-Break.tagName = 'BR';
-
-export default Break;

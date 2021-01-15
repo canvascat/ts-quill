@@ -1,6 +1,5 @@
 import { cloneDeep, isEqual } from 'lodash'
-import Delta from 'quill-delta'
-import DeltaOp from 'quill-delta/lib/op'
+import Delta from '../delta'
 import { EmbedBlot, Scope, TextBlot } from 'parchment'
 import logger from '../core/logger'
 import Module from '../core/module'
@@ -11,6 +10,8 @@ const debug = logger('quill:keyboard')
 export const SHORTKEY = /Mac/i.test(navigator.platform) ? 'metaKey' : 'ctrlKey'
 
 export default class Keyboard extends Module {
+  static pluginName = 'modules/keyboard'
+
   static match(evt, binding) {
     if (
       ['altKey', 'ctrlKey', 'metaKey', 'shiftKey'].some(key => {
@@ -400,7 +401,7 @@ function handleBackspace(range, context) {
       } else if (prev.length() > 1) {
         const curFormats = line.formats()
         const prevFormats = this.quill.getFormat(range.index - 1, 1)
-        formats = DeltaOp.attributes.diff(curFormats, prevFormats) || {}
+        formats = Delta.AttributeMap.diff(curFormats, prevFormats) || {}
       }
     }
   }
@@ -429,7 +430,7 @@ function handleDelete(range, context) {
       }
       const curFormats = line.formats()
       const nextFormats = this.quill.getFormat(range.index, 1)
-      formats = DeltaOp.attributes.diff(curFormats, nextFormats) || {}
+      formats = Delta.AttributeMap.diff(curFormats, nextFormats) || {}
       nextLength = next.length()
     }
   }
@@ -445,7 +446,7 @@ function handleDeleteRange(range) {
   if (lines.length > 1) {
     const firstFormats = lines[0].formats()
     const lastFormats = lines[lines.length - 1].formats()
-    formats = DeltaOp.attributes.diff(lastFormats, firstFormats) || {}
+    formats = Delta.AttributeMap.diff(lastFormats, firstFormats) || {}
   }
   this.quill.deleteText(range, Sources.USER)
   if (Object.keys(formats).length > 0) {

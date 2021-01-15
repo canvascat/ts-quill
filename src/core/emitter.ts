@@ -5,13 +5,12 @@ import logger from './logger'
 const debug = logger('quill:events')
 const EVENTS = ['selectionchange', 'mousedown', 'mouseup', 'click']
 
+// 事件代理
 EVENTS.forEach(eventName => {
   document.addEventListener(eventName, (...args) => {
     Array.from(document.querySelectorAll('.ql-container')).forEach(node => {
       const quill = instances.get(node)
-      if (quill && quill.emitter) {
-        quill.emitter.handleDOM(...args)
-      }
+      quill?.emitter.handleDOM(...args)
     })
   })
 })
@@ -31,16 +30,22 @@ export enum Events {
   SELECTION_CHANGE = 'selection-change',
   TEXT_CHANGE = 'text-change'
 }
+interface DOMListeners {
+  [eventName: string]: {
+    node: Node
+    handler: Function
+  }[]
+}
 
 export default class Emitter extends EventEmitter {
   static events = Events
-
   static sources = Sources
+
+  DOMListeners: DOMListeners = {}
 
   constructor() {
     super()
-    this.listeners = {}
-    this.on('error', debug.error)
+    this.on('error', debug.error as EventEmitter.ListenerFn)
   }
 
   emit(event: string, ...args: any[]) {
@@ -48,18 +53,14 @@ export default class Emitter extends EventEmitter {
     return super.emit(event, ...args)
   }
 
-  handleDOM(event, ...args: any[]) {
-    ;(this.listeners[event.type] || []).forEach(({ node, handler }) => {
-      if (event.target === node || node.contains(event.target)) {
-        handler(event, ...args)
-      }
+  handleDOM(event: Event, ...args: any[]) {
+    this.DOMListeners[event.type]?.forEach(({ node, handler }) => {
+      node.contains(event.target as Node) && handler(event, ...args)
     })
   }
 
   listenDOM(eventName: string, node: Node, handler: Function) {
-    if (!this.listeners[eventName]) {
-      this.listeners[eventName] = []
-    }
-    this.listeners[eventName].push({ node, handler })
+    if (!this.DOMListeners[eventName]) this.DOMListeners[eventName] = []
+    this.DOMListeners[eventName].push({ node, handler })
   }
 }

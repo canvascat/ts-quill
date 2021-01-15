@@ -1,4 +1,4 @@
-import Delta from 'quill-delta'
+import Delta from '../delta'
 import { EmbedBlot, Scope } from 'parchment'
 import Quill from '../core/quill'
 import logger from '../core/logger'

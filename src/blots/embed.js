@@ -3,7 +3,9 @@ import TextBlot from './text';
 
 const GUARD_TEXT = '\uFEFF';
 
-class Embed extends EmbedBlot {
+export default class Embed extends EmbedBlot {
+  static pluginName = 'blots/embed';
+
   constructor(scroll, node) {
     super(scroll, node);
     this.contentNode = document.createElement('span');
@@ -77,5 +79,3 @@ class Embed extends EmbedBlot {
     });
   }
 }
-
-export default Embed;

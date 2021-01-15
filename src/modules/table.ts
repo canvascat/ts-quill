@@ -1,4 +1,4 @@
-import Delta from 'quill-delta'
+import Delta from '../delta'
 import Quill from '../core/quill'
 import Module from '../core/module'
 import { TableCell, TableRow, TableBody, TableContainer, tableId } from '../formats/table'

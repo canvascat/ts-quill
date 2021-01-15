@@ -1,12 +1,15 @@
 import { ContainerBlot, LeafBlot, Scope } from 'parchment'
 import { cloneDeep, isEqual } from 'lodash'
-import { Events, Sources } from './emitter'
+import Emitter, { Events, Sources } from './emitter'
 import logger from './logger'
+import { Blot } from 'parchment/dist/src/blot/abstract/blot'
 
 const debug = logger('quill:selection')
 
 export class Range {
-  constructor(index, length = 0) {
+  index: number
+  length: number
+  constructor(index: number, length = 0) {
     this.index = index
     this.length = length
   }
@@ -19,8 +22,9 @@ export default class Selection {
   composing = false
   mouseDown = false
   savedRange = new Range(0, 0)
+  lastRange: Range
 
-  constructor(scroll, emitter) {
+  constructor(scroll: Blot, emitter: Emitter) {
     this.emitter = emitter
     this.scroll = scroll
     this.root = this.scroll.domNode

@@ -1,6 +1,5 @@
 import { cloneDeep, isEqual } from 'lodash'
-import Delta from 'quill-delta'
-import DeltaOp from 'quill-delta/lib/op'
+import Delta from '../delta'
 import { LeafBlot } from 'parchment'
 import CursorBlot from '../blots/cursor'
 import Block, { bubbleFormats } from '../blots/block'
@@ -37,12 +36,11 @@ export default class Editor {
           this.scroll.insertAt(index, text)
           const [line, offset] = this.scroll.line(index)
           let formats = Object.assign({}, bubbleFormats(line))
-          console.log(formats)
           if (line instanceof Block) {
             const [leaf] = line.descendant(LeafBlot, offset)
             Object.assign(formats, bubbleFormats(leaf))
           }
-          attributes = DeltaOp.attributes.diff(formats, attributes) || {}
+          attributes = Delta.AttributeMap.diff(formats, attributes) || {}
         } else if (typeof op.insert === 'object') {
           const key = Object.keys(op.insert)[0] // There should only be one key
           if (key == null) return index
@@ -67,12 +65,12 @@ export default class Editor {
     return this.update(normalizedDelta)
   }
 
-  deleteText(index, length) {
+  deleteText(index: number, length: number) {
     this.scroll.deleteAt(index, length)
     return this.update(new Delta().retain(index).delete(length))
   }
 
-  formatLine(index, length, formats = {}) {
+  formatLine(index: number, length: number, formats = {}) {
     this.scroll.update()
     Object.keys(formats).forEach(format => {
       this.scroll.lines(index, Math.max(length, 1)).forEach(line => {
@@ -84,7 +82,7 @@ export default class Editor {
     return this.update(delta)
   }
 
-  formatText(index, length, formats = {}) {
+  formatText(index: number, length: number, formats = {}) {
     Object.keys(formats).forEach(format => {
       this.scroll.formatAt(index, length, format, formats[format])
     })
@@ -92,7 +90,7 @@ export default class Editor {
     return this.update(delta)
   }
 
-  getContents(index, length) {
+  getContents(index: number, length: number) {
     return this.delta.slice(index, index + length)
   }
 
@@ -102,7 +100,7 @@ export default class Editor {
     }, new Delta())
   }
 
-  getFormat(index, length = 0) {
+  getFormat(index: number, length = 0) {
     let lines = []
     let leaves = []
     if (length === 0) {
@@ -131,7 +129,7 @@ export default class Editor {
     return Object.assign({}, ...formatsArr)
   }
 
-  getHTML(index, length) {
+  getHTML(index: number, length: number) {
     const [line, lineOffset] = this.scroll.line(index)
     if (line.length() >= lineOffset + length) {
       return convertHTML(line, lineOffset, length, true)
@@ -139,19 +137,19 @@ export default class Editor {
     return convertHTML(this.scroll, index, length, true)
   }
 
-  getText(index, length) {
+  getText(index: number, length: number) {
     return this.getContents(index, length)
       .filter(op => typeof op.insert === 'string')
       .map(op => op.insert)
       .join('')
   }
 
-  insertEmbed(index, embed, value) {
+  insertEmbed(index: number, embed: number, value) {
     this.scroll.insertAt(index, embed, value)
     return this.update(new Delta().retain(index).insert({ [embed]: value }))
   }
 
-  insertText(index, text, formats = {}) {
+  insertText(index: number, text: string, formats = {}) {
     text = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
     this.scroll.insertAt(index, text)
     Object.keys(formats).forEach(format => {
@@ -169,7 +167,7 @@ export default class Editor {
     return block.children.head instanceof Break
   }
 
-  removeFormat(index, length) {
+  removeFormat(index: number, length: number) {
     const text = this.getText(index, length)
     const [line, offset] = this.scroll.line(index + length)
     let suffixLength = 0
@@ -255,7 +253,7 @@ function convertListHTML(items, lastIndent, types) {
   return `</li></${endTag}>${convertListHTML(items, lastIndent - 1, types)}`
 }
 
-function convertHTML(blot, index, length, isRoot = false) {
+function convertHTML(blot, index: number, length: number, isRoot = false) {
   if (typeof blot.html === 'function') {
     return blot.html(index, length)
   } else if (blot instanceof TextBlot) {

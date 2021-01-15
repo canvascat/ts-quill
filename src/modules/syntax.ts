@@ -1,4 +1,4 @@
-import Delta from 'quill-delta'
+import Delta from '../delta'
 import { ClassAttributor, Scope } from 'parchment'
 import Inline from '../blots/inline'
 import Quill from '../core/quill'
