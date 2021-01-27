@@ -1,33 +1,27 @@
 import Delta from '../delta'
 import { Sources } from '../core/emitter'
 import Module from '../core/module'
+import Quill from '../core'
 
 export default class Uploader extends Module {
   static pluginName = 'modules/uploader'
 
-  constructor(quill, options) {
+  constructor(quill: Quill, options) {
     super(quill, options)
     quill.root.addEventListener('drop', e => {
       e.preventDefault()
-      let native
-      if (document.caretRangeFromPoint) {
-        native = document.caretRangeFromPoint(e.clientX, e.clientY)
-      } else if (document.caretPositionFromPoint) {
-        const position = document.caretPositionFromPoint(e.clientX, e.clientY)
-        native = document.createRange()
-        native.setStart(position.offsetNode, position.offset)
-        native.setEnd(position.offsetNode, position.offset)
-      } else {
-        return
-      }
+      const position = document.caretPositionFromPoint(e.clientX, e.clientY) as CaretPosition
+      const native = document.createRange()
+      native.setStart(position.offsetNode, position.offset)
+      native.setEnd(position.offsetNode, position.offset)
       const normalized = quill.selection.normalizeNative(native)
       const range = quill.selection.normalizedToRange(normalized)
-      this.upload(range, e.dataTransfer.files)
+      this.upload(range, (e.dataTransfer as DataTransfer).files as FileList)
     })
   }
 
-  upload(range, files) {
-    const uploads = []
+  upload(range: RangeStatic, files: FileList) {
+    const uploads: Array<File> = []
     Array.from(files).forEach(file => {
       if (file && this.options.mimetypes.includes(file.type)) {
         uploads.push(file)
@@ -41,18 +35,18 @@ export default class Uploader extends Module {
 
 Uploader.DEFAULTS = {
   mimetypes: ['image/png', 'image/jpeg'],
-  handler(range, files) {
-    const promises = files.map(file => {
+  handler(range, files: Array<File>) {
+    const promises: Promise<string>[] = files.map(file => {
       return new Promise(resolve => {
         const reader = new FileReader()
         reader.onload = e => {
-          resolve(e.target.result)
+          resolve(reader.result as string)
         }
         reader.readAsDataURL(file)
       })
     })
     Promise.all(promises).then(images => {
-      const update = images.reduce((delta, image) => {
+      const update = images.reduce((delta: Delta, image) => {
         return delta.insert({ image })
       }, new Delta().retain(range.index).delete(range.length))
       this.quill.updateContents(update, Sources.USER)

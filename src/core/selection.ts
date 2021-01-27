@@ -2,35 +2,42 @@ import { ContainerBlot, LeafBlot, Scope } from 'parchment'
 import { cloneDeep, isEqual } from 'lodash'
 import Emitter, { Events, Sources } from './emitter'
 import logger from './logger'
-import { Blot } from 'parchment/dist/src/blot/abstract/blot'
+import Scroll from '../blots/scroll'
+import Cursor from '../blots/cursor'
+// import { RangeStatic } from 'quill'
 
 const debug = logger('quill:selection')
 
-export class Range {
-  index: number
-  length: number
-  constructor(index: number, length = 0) {
-    this.index = index
-    this.length = length
+interface NormalizeRange {
+  start: {
+    node: Node
+    offset: number
   }
+  end: {
+    node: Node
+    offset: number
+  }
+  native: Range
 }
 
 export default class Selection {
   emitter
   scroll
-  root
+  root: HTMLElement
   composing = false
   mouseDown = false
-  savedRange = new Range(0, 0)
-  lastRange: Range
+  savedRange: RangeStatic
+  lastRange: RangeStatic
+  cursor: Cursor
 
-  constructor(scroll: Blot, emitter: Emitter) {
+  constructor(scroll: Scroll, emitter: Emitter) {
     this.emitter = emitter
     this.scroll = scroll
     this.root = this.scroll.domNode
-    this.cursor = this.scroll.create('cursor', this)
+    this.cursor = this.scroll.create('cursor', this) as Cursor
     // savedRange is last non-null range
-    this.lastRange = this.savedRange
+    console.log(this.cursor, '====')
+    this.lastRange = this.savedRange = { index: 0, length: 0 }
     this.handleComposition()
     this.handleDragging()
     this.emitter.listenDOM('selectionchange', document, () => {
@@ -77,7 +84,12 @@ export default class Selection {
         const range = this.cursor.restore()
         if (!range) return
         setTimeout(() => {
-          this.setNativeRange(range.startNode, range.startOffset, range.endNode, range.endOffset)
+          this.setNativeRange(
+            range.startNode as Text,
+            range.startOffset,
+            range.endNode,
+            range.endOffset
+          )
         }, 1)
       }
     })
@@ -190,8 +202,8 @@ export default class Selection {
     return document.activeElement === this.root || contains(this.root, document.activeElement)
   }
 
-  normalizedToRange(range) {
-    const positions = [[range.start.node, range.start.offset]]
+  normalizedToRange(range: NormalizeRange): RangeStatic {
+    const positions: Array<[Node, number]> = [[range.start.node, range.start.offset]]
     if (!range.native.collapsed) {
       positions.push([range.end.node, range.end.offset])
     }
@@ -208,10 +220,10 @@ export default class Selection {
     })
     const end = Math.min(Math.max(...indexes), this.scroll.length() - 1)
     const start = Math.min(end, ...indexes)
-    return new Range(start, end - start)
+    return { index: start, length: end - start }
   }
 
-  normalizeNative(nativeRange) {
+  normalizeNative(nativeRange: Range): Nullable<NormalizeRange> {
     if (
       !contains(this.root, nativeRange.startContainer) ||
       (!nativeRange.collapsed && !contains(this.root, nativeRange.endContainer))
@@ -233,7 +245,7 @@ export default class Selection {
           node = node.childNodes[offset]
           offset = 0
         } else if (node.childNodes.length === offset) {
-          node = node.lastChild
+          node = node.lastChild as Node
           if (node instanceof Text) {
             offset = node.data.length
           } else if (node.childNodes.length > 0) {
@@ -269,7 +281,7 @@ export default class Selection {
     return args
   }
 
-  scrollIntoView(scrollingContainer) {
+  scrollIntoView(scrollingContainer: HTMLElement) {
     const range = this.lastRange
     if (range == null) return
     const bounds = this.getBounds(range.index, range.length)
@@ -290,7 +302,7 @@ export default class Selection {
   }
 
   setNativeRange(
-    startNode,
+    startNode: Node,
     startOffset,
     endNode = startNode,
     endOffset = startOffset,
@@ -336,7 +348,9 @@ export default class Selection {
     }
   }
 
-  setRange(range, force = false, source = Sources.API) {
+  setRange(range: Nullable<RangeStatic>, force: boolean, source: Sources): void
+  setRange(range: Nullable<RangeStatic>, source: Sources): void
+  setRange(range: Nullable<RangeStatic>, force: boolean | Sources = false, source = Sources.API) {
     if (typeof force === 'string') {
       source = force
       force = false

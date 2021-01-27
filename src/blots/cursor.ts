@@ -7,12 +7,15 @@ export default class Cursor extends EmbedBlot {
   static className = 'ql-cursor'
   static tagName = 'span'
   static CONTENTS = '\uFEFF' // Zero width no break space
+  textNode: Text
+  selection
+  savedLength: number
 
   static value() {
     return undefined
   }
 
-  constructor(scroll, domNode, selection) {
+  constructor(scroll, domNode: HTMLElement, selection) {
     super(scroll, domNode)
     this.selection = selection
     this.textNode = document.createTextNode(Cursor.CONTENTS)
