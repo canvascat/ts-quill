@@ -1,15 +1,20 @@
-import Delta from '../delta'
-import * as Parchment from 'parchment'
 import { merge } from 'lodash'
+import * as Parchment from 'parchment'
+import Delta from '../delta'
 import Editor from './editor'
 import Emitter, { Events, Sources } from './emitter'
 import Module from './module'
-import Selection, { Range } from './selection'
+import Selection from './selection'
 import instances from './instances'
 import logger, { Levels } from './logger'
 import Theme from './theme'
 import { QuillOptions, QuillOptionsStatic } from '../types'
-import { RangeStatic } from 'quill'
+
+interface importsMap {
+  [name: string]: any
+}
+
+type Overload = [number, number, StringMap, Sources]
 
 const debug = logger('quill')
 const QUILL_VERSION = (globalThis as any).QUILL_VERSION || 'dev'
@@ -31,7 +36,7 @@ export default class Quill {
   static events = Events
   static sources = Sources
   static version = QUILL_VERSION
-  static imports = {
+  static imports: importsMap = {
     delta: Delta,
     parchment: Parchment,
     'core/module': Module,
@@ -43,21 +48,13 @@ export default class Quill {
     if (limit === true) limit = 'log'
     logger.level(limit)
   }
-  static find(node: HTMLDivElement) {
+  static find(node: Node) {
     return instances.get(node) || globalRegistry.find(node)
   }
   static import(name: string) {
-    if (this.imports[name] == null) {
-      debug.error(`Cannot import ${name}. Are you sure it was registered?`)
-    }
+    if (!this.imports[name]) debug.error(`Cannot import ${name}. Are you sure it was registered?`)
     return this.imports[name]
   }
-
-  // TODO
-  // static use(plugin, overwrite = false) {
-  //   const name = plugin.attrName ?? plugin.blotName ?? plugin.pluginName
-  //   this.register(`formats/${name}`, plugin, overwrite)
-  // }
 
   static register(path: string, def: any, suppressWarning?: boolean): void
   static register(defs: StringMap, suppressWarning?: boolean): void
@@ -200,9 +197,9 @@ export default class Quill {
   }
   format(name: string, value: any, source?: Sources): Delta {
     return this.modify(() => {
-      const range = this.getSelection(true)
+      const range = this.getSelection(true) as RangeStatic
       let change = new Delta()
-      if (range == null) {
+      if (range === null) {
         return change
       } else if (this.scroll.query(name, Parchment.Scope.BLOCK)) {
         change = this.editor.formatLine(range.index, range.length, {
@@ -231,7 +228,7 @@ export default class Quill {
     value?: any,
     source?: Sources
   ): Delta {
-    let formats
+    let formats: StringMap
       // eslint-disable-next-line prefer-const
     ;[index, length, formats, source] = overload(index, length, name, value, source)
     return this.modify(() => this.editor.formatLine(index, length, formats), source, index, 0)
@@ -249,19 +246,17 @@ export default class Quill {
     value?: any,
     source?: Sources
   ) {
-    let formats
+    // formatText(...args) {
+    let formats: StringMap
       // eslint-disable-next-line prefer-const
     ;[index, length, formats, source] = overload(index, length, name, value, source)
     return this.modify(() => this.editor.formatText(index, length, formats), source, index, 0)
   }
 
-  getBounds(index: number, length = 0): BoundsStatic {
-    let bounds
-    if (typeof index === 'number') {
-      bounds = this.selection.getBounds(index, length)
-    } else {
-      bounds = this.selection.getBounds(index.index, index.length)
-    }
+  getBounds(index: number | RangeStatic, length = 0): BoundsStatic {
+    const bounds = (typeof index === 'number'
+      ? this.selection.getBounds(index, length)
+      : this.selection.getBounds(index.index, index.length)) as DOMRect
     const containerBounds = this.container.getBoundingClientRect()
     return {
       bottom: bounds.bottom - containerBounds.top,
@@ -332,7 +327,7 @@ export default class Quill {
     return this.selection.hasFocus()
   }
 
-  insertEmbed(index: number, embed: string, value: any, source?: Sources) {
+  insertEmbed(index: number, embed: number, value: any, source?: Sources) {
     return this.modify(() => this.editor.insertEmbed(index, embed, value), source, index)
   }
 
@@ -346,7 +341,7 @@ export default class Quill {
     value?: any,
     source?: Sources
   ) {
-    let formats
+    let formats: StringMap
       // eslint-disable-next-line prefer-const
     ;[index, , formats, source] = overload(index, 0, name, value, source)
     return this.modify(
@@ -401,12 +396,14 @@ export default class Quill {
     }, source)
   }
 
-  setSelection(index: number, length: number, source?: Sources) {
+  setSelection(index: number, length: number, source?: Sources): void
+  setSelection(range: RangeStatic, source?: Sources): void
+  setSelection(index: number | RangeStatic, length?: number | Sources, source?: Sources) {
     if (index == null) {
       this.selection.setRange(null, length || Sources.API)
     } else {
       ;[index, length, , source] = overload(index, length, source)
-      this.selection.setRange(new Range(index, length), source)
+      this.selection.setRange({ index, length }, source)
       if (source !== Sources.SILENT) {
         this.selection.scrollIntoView(this.scrollingContainer)
       }
@@ -528,11 +525,31 @@ export function expandConfig(
   return userConfig
 }
 
-// (index, length, source)
-// (index, length, name, value, source)
-export function overload(index, length, name, value, source) {
-  let formats = {}
-  if (typeof index.index === 'number' && typeof index.length === 'number') {
+export function overload(index: number, length: number, source?: Sources): Overload
+export function overload(
+  index: number,
+  length: number,
+  format: string,
+  value: any,
+  source?: Sources
+): Overload
+export function overload(
+  index: number,
+  length: number,
+  formats: StringMap,
+  source?: Sources
+): Overload
+export function overload(range: RangeStatic, format: string, value: any, source?: Sources): Overload
+export function overload(range: RangeStatic, formats: StringMap, source?: Sources): Overload
+export function overload(
+  index: number | RangeStatic,
+  length: number | string | StringMap,
+  name?: any,
+  value?: any,
+  source?: Sources
+): Overload {
+  let formats: StringMap = {}
+  if (typeof index !== 'number') {
     // Allow for throwaway end (used by insertText/insertEmbed)
     if (typeof length !== 'number') {
       source = value
@@ -555,7 +572,7 @@ export function overload(index, length, name, value, source) {
     if (value != null) {
       formats[name] = value
     } else {
-      source = name
+      source = name as Sources
     }
   }
   // Handle optional source
@@ -563,8 +580,8 @@ export function overload(index, length, name, value, source) {
   return [index, length, formats, source]
 }
 
-function shiftRange(range: RangeStatic, index: number, shift: number, source?: Sources): Range
-function shiftRange(range: RangeStatic, change: Delta, source?: Sources): Range
+function shiftRange(range: RangeStatic, index: number, shift: number, source?: Sources): RangeStatic
+function shiftRange(range: RangeStatic, change: Delta, source?: Sources): RangeStatic
 function shiftRange(
   range: RangeStatic,
   index: number | Delta,
@@ -584,5 +601,5 @@ function shiftRange(
       return length >= 0 ? pos + length : Math.max(index, pos + length)
     })
   }
-  return new Range(start, end - start)
+  return { index: start, length: end - start }
 }
